@@ -13,7 +13,7 @@ I've only used this on macOS. Linux instructions should be pretty identical. Win
 * Plug in your USB drive and unmount it.
 * Figure out the device node for your FAT32 partition. On macOS, you can find this in Disk Utility when you click the "Info" button for your volume. It should be something like "disk2s1".
 * Create a directory for the output.
-* Run the script, providing the directory path and device node like so: `sudo ./run.py myoutputdirectory /dev/disk2s1`
+* Run the script, providing the directory path and device node like so: `sudo ./run.py /dev/disk2s1 myoutputdirectory`
 
 This will take a while. The script is not made for space or time efficiency. It assumes all video segments are 40MB, which is larger than they should be. You'll need a lot of spare disk space (probably at least twice as much as your drive's capacity).
 
