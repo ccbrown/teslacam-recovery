@@ -15,7 +15,7 @@ I've only used this on macOS. Linux instructions should be pretty identical. Win
 * Create a directory for the output.
 * Run the script, providing the directory path and device node like so: `sudo ./run.py /dev/disk2s1 myoutputdirectory`
 
-This will take a while. The script is not made for space or time efficiency. It assumes all video segments are 40MB, which is larger than they should be. You'll need a lot of spare disk space (probably at least twice as much as your drive's capacity).
+This will take a while. The script is not made for space or time efficiency. You'll need a lot of spare disk space (possibly up to twice as much as your drive's capacity).
 
 Your directory should fill up with video files pretty quickly once the script is running.
 

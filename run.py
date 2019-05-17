@@ -83,19 +83,19 @@ for i in range(0, numberOfFATs):
         j += 4
 
 
-def readDirectory(directory_cluster, tabs, path='/', root=False):
+def readDirectory(directoryCluster, tabs, path='/', root=False):
     pad = list()
     for i in range(0, tabs):
         pad.append('\t')
     pad = ''.join(pad)
 
     while True:
-        f.seek(clust2byte(directory_cluster))
+        f.seek(clust2byte(directoryCluster))
         lfn = ''
         for i in range(bytesPerCluster / 32):
             entry = f.read(32)
 
-            short_filename = entry[0:8]
+            shortFilename = entry[0:8]
             extension = entry[8:11]
             attributes = ord(entry[11])
             lastModifiedTime, = struct.unpack("<H", entry[0x16:0x18])
@@ -106,7 +106,7 @@ def readDirectory(directory_cluster, tabs, path='/', root=False):
             cluster = (clusterHigh << 16) | clusterLow
 
             filename = lfn.replace('\xff', '').replace(
-                '\0', '') if lfn != '' else ('%s.%s' % (short_filename, extension))
+                '\0', '') if lfn != '' else ('%s.%s' % (shortFilename, extension))
 
             if attributes == 0 and cluster == 0:
                 continue
@@ -144,23 +144,23 @@ def readDirectory(directory_cluster, tabs, path='/', root=False):
             elif attributes & 0x08:
                 # Volume label.
                 pass
-            elif attributes & 0x10 and short_filename != '.       ' and short_filename != '..      ':
+            elif attributes & 0x10 and shortFilename != '.       ' and shortFilename != '..      ':
                 print '%sEntering directory . . .' % pad
                 # Create the directory structure.
                 try:
                     os.mkdir('%s%s%s' % (sys.argv[2], path, filename))
                 except OSError:
                     pass
-                prev_pos = f.tell()
+                previousPosition = f.tell()
                 readDirectory(cluster, tabs+1, '%s%s/' % (path, filename))
-                f.seek(prev_pos)
-            elif short_filename != '.       ' and short_filename != '..      ' and filesize != 0xFFFFFFFF:
+                f.seek(previousPosition)
+            elif shortFilename != '.       ' and shortFilename != '..      ' and filesize != 0xFFFFFFFF:
                 # Modify this condition if you want to export some files.
                 if True:
                     continue
 
                 # Export the files.
-                prev_pos = f.tell()
+                previousPosition = f.tell()
                 fout = open('%s%s%s' % (sys.argv[2], path, filename), 'wb')
 
                 # For recovering files, it may be useful to assume contiguous clusters.
@@ -174,41 +174,50 @@ def readDirectory(directory_cluster, tabs, path='/', root=False):
                         f.seek(clust2byte(curCluster))
                         fout.write(f.read(bytesPerCluster))
                 fout.close()
-                f.seek(prev_pos)
-        directory_cluster = fatEntries[directory_cluster]
-        if (directory_cluster & 0xFFFFFF8) == 0xFFFFFF8:
+                f.seek(previousPosition)
+        directoryCluster = fatEntries[directoryCluster]
+        if (directoryCluster & 0xFFFFFF8) == 0xFFFFFF8:
             break
 
 
-def find_mp4s(start_cluster, end_cluster, assumed_size):
+def extractMP4s(startCluster, endCluster, maxSize):
     try:
         os.mkdir('%s/mp4s' % (sys.argv[2]))
     except OSError:
         pass
-    cluster = start_cluster
-    while cluster < end_cluster:
+    cluster = startCluster
+    while cluster < endCluster:
         if cluster % 1000 == 0:
             print 'Currently on cluster %d' % (cluster)
         f.seek(clust2byte(cluster))
         header = f.read(12)
         if header == '\0\0\0 ftypmp42':
             print 'Found mp4 at cluster %d' % (cluster)
-            f.seek(clust2byte(cluster))
             fout = open('%s/mp4s/%d.mp4' % (sys.argv[2], cluster), 'wb')
-            f.seek(clust2byte(cluster))
-            fout.write(f.read(assumed_size))
+            curCluster = cluster
+            bytesWritten = 0
+            while True:
+                f.seek(clust2byte(curCluster))
+                data = f.read(bytesPerCluster)
+                if bytesWritten > 0 and data[0:12] == '\0\0\0 ftypmp42':
+                    break
+                fout.write(data)
+                bytesWritten += bytesPerCluster
+                curCluster += 1
+                if bytesWritten >= maxSize:
+                    break
             fout.close()
         cluster += 1
 
 
 # If you want to do a faster, more targeted search, you can uncomment these lines and use the output
-# to specify a cluster range to find_mp4s below:
+# to specify a cluster range to extractMP4s below:
 
 #print 'Reading directories...'
 #readDirectory(rootDirectoryCluster, 1)
 
 print 'Finding mp4s...'
-find_mp4s(0, totalClusters, 40000000)
+extractMP4s(0, totalClusters, 40000000)
 
 print
 
