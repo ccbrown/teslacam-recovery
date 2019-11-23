@@ -23,7 +23,9 @@ isUsbDrive
 
 echo ""
 read -p "Please confirm that $deviceNode is your teslacam usb? (y/n) " answer
-if [ "$answer" != "y" ]; then exit; fi
+if [ "$answer" != "y" ]; then 
+    echo "In run.sh file, edit the line diskId=disk2 to your usb drive"
+    exit; fi
 
 diskutil unmount $deviceNode
 mkdir -p ~/Downloads/teslacam/
