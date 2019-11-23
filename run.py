@@ -20,7 +20,9 @@ def dumpBinary(data):
 
 
 if len(sys.argv) < 3:
-    print 'Usage: '+sys.argv[0]+' input outputdir'
+    print 'Teslacam recovery tool'
+    print 'Usage: '+sys.argv[0]+' input output_dir'
+    print 'Ex:    '+sys.argv[0]+' /dev/disk2s1 ~/Downloads/'
     sys.exit()
 
 f = open(sys.argv[1], 'rb')
@@ -185,10 +187,13 @@ def extractMP4s(startCluster, endCluster, maxSize):
         os.mkdir('%s/mp4s' % (sys.argv[2]))
     except OSError:
         pass
+    
+    print '--- extractMP4s from %d to %d' % (startCluster, endCluster)
+
     cluster = startCluster
     while cluster < endCluster:
         if cluster % 1000 == 0:
-            print 'Currently on cluster %d' % (cluster)
+            print '- cluster %d:' % (cluster)
         f.seek(clust2byte(cluster))
         header = f.read(12)
         if header == '\0\0\0 ftypmp42':
@@ -216,8 +221,14 @@ def extractMP4s(startCluster, endCluster, maxSize):
 #print 'Reading directories...'
 #readDirectory(rootDirectoryCluster, 1)
 
-print 'Finding mp4s...'
-extractMP4s(0, totalClusters, 40000000)
+print '--- Finding mp4 ...'
+
+gStartingCluster = 0
+if len(sys.argv) >= 4:
+    gStartingCluster = int(sys.argv[3])
+    # print 'Starting cluster = %d' % (gStartingCluster)
+
+extractMP4s(gStartingCluster, totalClusters, 40000000)
 
 print
 
