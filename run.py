@@ -32,18 +32,17 @@ sectorsPerClusterShift,    = struct.unpack("<B", bootSector[0x6D]) # 1 byte, Sim
 reservedSectors,           = struct.unpack("<I", bootSector[0x50:0x54]) # FATOffset, 4 bytes, offset in sectors from the start of the partition to the first FAT
 numberOfFATs,              = struct.unpack("<B", bootSector[0x6E]) # 1 byte
 #maxRootDirEntries,        = struct.unpack("<H", bootSector[0x11:0x13])
-volumeLength,              = struct.unpack("<Q", bootSector[0x48:0x50]) # VolumeLength in Sectors, 8 bytes
+totalSectors,              = struct.unpack("<Q", bootSector[0x48:0x50]) # VolumeLength in Sectors, 8 bytes
 sectorsPerFAT,             = struct.unpack("<I", bootSector[0x54:0x58]) # FATLength, 4 bytes
 #rootDirectoryCluster,      = struct.unpack("<I", bootSector[0x2c:0x30])
 bytesPerSector = 2 ** bytesPerSectorShift
 sectorsPerCluster = 2 ** sectorsPerClusterShift
-totalSectors = volumeLength
 maxRootDirEntries = 0
 
 # if totalSectors == 0:
 #     totalSectors, = struct.unpack("<I", bootSector[0x20:0x24])
 
-totalClusters = volumeLength << sectorsPerClusterShift
+totalClusters = totalSectors/sectorsPerCluster
 bytesPerCluster = bytesPerSector*sectorsPerCluster
 
 print 'Bytes per sector: %d' % bytesPerSector
