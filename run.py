@@ -1,56 +1,68 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 import os
 import sys
 import struct
 
-# Used for debugging.
-
 
 def dumpBinary(data):
     offset = 0
     for byte in data:
-        print '%02X ' % ord(byte),
+        print('%02X ' % byte, end='')
         offset += 1
         if offset % 16 == 0:
-            print
+            print('')
         elif offset % 8 == 0:
-            print ' ',
+            print(' ', end='')
     return
 
 
 if len(sys.argv) < 3:
-    print 'Usage: '+sys.argv[0]+' input outputdir'
+    print('Usage: '+sys.argv[0]+' input outputdir')
     sys.exit()
 
 f = open(sys.argv[1], 'rb')
 
 bootSector = f.read(512)
 
-bytesPerSector,       = struct.unpack("<H", bootSector[0x0B:0x0D])
-sectorsPerCluster,    = struct.unpack("<B", bootSector[0x0D])
-reservedSectors,      = struct.unpack("<H", bootSector[0x0E:0x10])
-numberOfFATs,         = struct.unpack("<B", bootSector[0x10])
-maxRootDirEntries,    = struct.unpack("<H", bootSector[0x11:0x13])
-totalSectors,         = struct.unpack("<H", bootSector[0x13:0x15])
-sectorsPerFAT,        = struct.unpack("<I", bootSector[0x24:0x28])
-rootDirectoryCluster, = struct.unpack("<I", bootSector[0x2c:0x30])
+isExFat = bootSector[3:8] == b'EXFAT'
+
+if isExFat:
+    bytesPerSectorShift,    = struct.unpack("<B", bootSector[0x6C:0x6D])
+    bytesPerSector          = 1 << bytesPerSectorShift
+    sectorsPerClusterShift, = struct.unpack("<B", bootSector[0x6D:0x6E])
+    sectorsPerCluster       = 1 << sectorsPerClusterShift
+    reservedSectors,        = struct.unpack("<I", bootSector[0x50:0x54])
+    numberOfFATs,           = struct.unpack("<B", bootSector[0x6E:0x6F])
+    maxRootDirEntries       = 0
+    totalSectors,           = struct.unpack("<Q", bootSector[0x48:0x50])
+    sectorsPerFAT,          = struct.unpack("<I", bootSector[0x54:0x58])
+    rootDirectoryCluster,   = struct.unpack("<I", bootSector[0x60:0x64])
+else:
+    bytesPerSector,       = struct.unpack("<H", bootSector[0x0B:0x0D])
+    sectorsPerCluster,    = struct.unpack("<B", bootSector[0x0D:0x0E])
+    reservedSectors,      = struct.unpack("<H", bootSector[0x0E:0x10])
+    numberOfFATs,         = struct.unpack("<B", bootSector[0x10:0x11])
+    maxRootDirEntries,    = struct.unpack("<H", bootSector[0x11:0x13])
+    totalSectors,         = struct.unpack("<H", bootSector[0x13:0x15])
+    sectorsPerFAT,        = struct.unpack("<I", bootSector[0x24:0x28])
+    rootDirectoryCluster, = struct.unpack("<I", bootSector[0x2c:0x30])
 
 if totalSectors == 0:
     totalSectors, = struct.unpack("<I", bootSector[0x20:0x24])
 
-totalClusters = totalSectors/sectorsPerCluster
+totalClusters = totalSectors//sectorsPerCluster
 bytesPerCluster = bytesPerSector*sectorsPerCluster
 
-print 'Bytes per sector: %d' % bytesPerSector
-print 'Sectors per cluster: %d' % sectorsPerCluster
-print 'Reserved sectors: %d' % reservedSectors
-print 'Number of FATs: %d' % numberOfFATs
-print 'Maximum root directory entries: %d' % maxRootDirEntries
-print 'Total sectors: %d' % totalSectors
-print 'Total clusters: %d' % totalClusters
-print 'Sectors per FAT: %d' % sectorsPerFAT
-print 'Root Directory Cluster: %d' % rootDirectoryCluster
+print('Bytes per sector: %d' % bytesPerSector)
+print('Sectors per cluster: %d' % sectorsPerCluster)
+print('Reserved sectors: %d' % reservedSectors)
+print('Number of FATs: %d' % numberOfFATs)
+print('Maximum root directory entries: %d' % maxRootDirEntries)
+print('Total sectors: %d' % totalSectors)
+print('Total clusters: %d' % totalClusters)
+print('Sectors per FAT: %d' % sectorsPerFAT)
+print('Root Directory Cluster: %d' % rootDirectoryCluster)
 
 
 def sect2byte(sect):
@@ -58,7 +70,7 @@ def sect2byte(sect):
 
 
 def clust2byte(clust):
-    return sect2byte(reservedSectors+numberOfFATs*sectorsPerFAT+maxRootDirEntries*32/bytesPerSector+(clust-2)*sectorsPerCluster)
+    return sect2byte(reservedSectors+numberOfFATs*sectorsPerFAT+maxRootDirEntries*32//bytesPerSector+(clust-2)*sectorsPerCluster)
 
 
 def isNonzero(data):
@@ -70,7 +82,7 @@ def isNonzero(data):
 
 fatEntries = list()
 
-print 'Reading FATs at offset %d . . .' % sect2byte(reservedSectors)
+print('Reading FATs at offset %d . . .' % sect2byte(reservedSectors))
 
 f.seek(sect2byte(reservedSectors))
 
@@ -92,12 +104,12 @@ def readDirectory(directoryCluster, tabs, path='/', root=False):
     while True:
         f.seek(clust2byte(directoryCluster))
         lfn = ''
-        for i in range(bytesPerCluster / 32):
+        for i in range(bytesPerCluster // 32):
             entry = f.read(32)
 
             shortFilename = entry[0:8]
             extension = entry[8:11]
-            attributes = ord(entry[11])
+            attributes = entry[11]
             lastModifiedTime, = struct.unpack("<H", entry[0x16:0x18])
             lastModifiedDate, = struct.unpack("<H", entry[0x18:0x1a])
             clusterLow,       = struct.unpack("<H", entry[0x1a:0x1c])
@@ -113,16 +125,16 @@ def readDirectory(directoryCluster, tabs, path='/', root=False):
 
             if attributes != 0x0F:
                 # Not a long file name.
-                print '\n%sFilename:   %s' % (pad, filename)
-                print '%sAttributes: 0x%02X' % (pad, attributes)
-                print '%sFilesize:   %d' % (pad, filesize)
-                print '%sLast Modified: %d-%d-%d %d:%02d:%02d' % (pad,
+                print('\n%sFilename:   %s' % (pad, filename))
+                print('%sAttributes: 0x%02X' % (pad, attributes))
+                print('%sFilesize:   %d' % (pad, filesize))
+                print('%sLast Modified: %d-%d-%d %d:%02d:%02d' % (pad,
                                                                   1980 +
                                                                   ((lastModifiedDate & 0xfe00) >> 9), (
                                                                       lastModifiedDate & 0x1e0) >> 5, lastModifiedDate & 0x1f,
                                                                   (lastModifiedTime & 0xf800) >> 11, (
                                                                       lastModifiedTime & 0x7e0) >> 5, lastModifiedTime & 0x1f
-                                                                  )
+                                                                  ))
                 lfn = ''
 
                 firstCluster = cluster
@@ -130,12 +142,12 @@ def readDirectory(directoryCluster, tabs, path='/', root=False):
                 lastCluster = firstCluster - 1
                 while curCluster < 0x0FFFFFF0:
                     if curCluster != lastCluster + 1:
-                        print '%sClusters: %d - %d' % (pad,
-                                                       firstCluster, lastCluster)
+                        print('%sClusters: %d - %d' % (pad,
+                                                       firstCluster, lastCluster))
                         firstCluster = curCluster
                     lastCluster = curCluster
                     curCluster = fatEntries[curCluster]
-                print '%sClusters: %d - %d' % (pad, firstCluster, lastCluster)
+                print('%sClusters: %d - %d' % (pad, firstCluster, lastCluster))
 
             if attributes == 0x0F:
                 # Long file name.
@@ -145,7 +157,7 @@ def readDirectory(directoryCluster, tabs, path='/', root=False):
                 # Volume label.
                 pass
             elif attributes & 0x10 and shortFilename != '.       ' and shortFilename != '..      ':
-                print '%sEntering directory . . .' % pad
+                print('%sEntering directory . . .' % pad)
                 # Create the directory structure.
                 try:
                     os.mkdir('%s%s%s' % (sys.argv[2], path, filename))
@@ -188,18 +200,18 @@ def extractMP4s(startCluster, endCluster, maxSize):
     cluster = startCluster
     while cluster < endCluster:
         if cluster % 1000 == 0:
-            print 'Currently on cluster %d' % (cluster)
+            print('Currently on cluster %d' % (cluster))
         f.seek(clust2byte(cluster))
         header = f.read(12)
-        if header == '\0\0\0 ftypmp42':
-            print 'Found mp4 at cluster %d' % (cluster)
+        if header == b'\0\0\0 ftypmp42':
+            print('Found mp4 at cluster %d' % (cluster))
             fout = open('%s/mp4s/%d.mp4' % (sys.argv[2], cluster), 'wb')
             curCluster = cluster
             bytesWritten = 0
             while True:
                 f.seek(clust2byte(curCluster))
                 data = f.read(bytesPerCluster)
-                if bytesWritten > 0 and data[0:12] == '\0\0\0 ftypmp42':
+                if bytesWritten > 0 and data[0:12] == b'\0\0\0 ftypmp42':
                     break
                 fout.write(data)
                 bytesWritten += bytesPerCluster
@@ -212,11 +224,10 @@ def extractMP4s(startCluster, endCluster, maxSize):
 
 # If you want to do a faster, more targeted search, you can uncomment these lines and use the output
 # to specify a cluster range to extractMP4s below:
-
-#print 'Reading directories...'
+#print('Reading directories...')
 #readDirectory(rootDirectoryCluster, 1)
 
-print 'Finding mp4s...'
+print('Finding mp4s...')
 extractMP4s(0, totalClusters, 40000000)
 
 print
